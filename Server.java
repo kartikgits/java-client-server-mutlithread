@@ -43,9 +43,6 @@ public class Server
 					ClientHandler cHandler= new ClientHandler(s, dos);
 					clientHandlers.add(cHandler);
 				}
-
-				// Invoking the start() method
-				// t.start();
 			}
 			catch (Exception e){
 				e.printStackTrace();
@@ -55,24 +52,37 @@ public class Server
 
 		while(true){
 			try {
-				ExecutorService executor = Executors.newFixedThreadPool(6); //creating a pool of 5 threads 
-				Future<Integer> task = executor.submit(new SendingClientHandler(new DataInputStream(sendingClientSocket.getInputStream()), sendingClientSocket));
+				ExecutorService executor1 = Executors.newFixedThreadPool(3); //creating a pool of 3 threads, 2 pools 
+				Future<Integer> task = executor1.submit(new SendingClientHandler(new DataInputStream(sendingClientSocket.getInputStream()), sendingClientSocket));
 				Integer n = task.get();
+
+				ExecutorService executor2 = Executors.newFixedThreadPool(3);
 				
 				if(n == -1) {
 					break;
 				}
 	
-				for (int i = 0; i < clientHandlers.size(); i++) {
-					ClientHandler cHandler = clientHandlers.get(i);
-	
+				for (int i = 0; i < clientHandlers.size(); i+=2) {
+					ClientHandler cHandler1 = clientHandlers.get(i);
+					
 					//Set sending number
-					cHandler.setSendingNumber((n % 10) + i);
-					Runnable worker = cHandler;
-					executor.execute(worker); //calling execute method of ExecutorService
+					cHandler1.setSendingNumber((n % 10) + i);
+
+					ClientHandler cHandler2 = null;
+					if (i+1 < clientHandlers.size()) {
+						cHandler2 = clientHandlers.get(i+1);
+						cHandler2.setSendingNumber((n % 10) + i + 1);
+					}
+
+					Runnable worker = cHandler1;
+					executor1.execute(worker); //calling execute method of ExecutorService
+					worker = cHandler2;
+					executor2.execute(worker);
 				}  
-				executor.shutdown();  
-				while (!executor.isTerminated()) {   }  
+				executor1.shutdown();
+				while (!executor1.isTerminated()) {   }
+				executor2.shutdown();
+				while (!executor2.isTerminated()) {   }
 		
 				System.out.println("Finished all threads");
 			} catch (Exception e) {
@@ -125,14 +135,6 @@ class SendingClientHandler implements Callable<Integer> {
 				e.printStackTrace();
 			}
 		}
-		
-		// try
-		// {
-		// 	// closing resources
-		// 	this.dis.close();
-		// }catch(IOException e){
-		// 	e.printStackTrace();
-		// }
 
 		return n;
 	}
@@ -162,14 +164,5 @@ class ClientHandler extends Thread
 		}catch(IOException e){
 			e.printStackTrace();
 		}
-		
-		// try
-		// {
-		// 	// closing resources
-		// 	this.dos.close();
-			
-		// }catch(IOException e){
-		// 	e.printStackTrace();
-		// }
 	}
 }
